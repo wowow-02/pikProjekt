@@ -69,74 +69,53 @@ func main() {
 	fmt.Println(len(refs))
 
 	//Ista stvar sa ostalim algoritmima (samo copy paste)
-	sample := "test"
-	tolerance := 4
-	time, candidatesArray := runAlgorithm(refs, sample, tolerance, testAlg)
-	fmt.Println("Vrijeme za algoritam x je: ", time, " ,a kandidati su: ", candidatesArray)
+	sample := "ATC"
+	tolerance := 1
+	time, candidatesArray := runAlgorithm(refs, sample, tolerance, AlgoritamZ)
+	fmt.Println("Vrijeme za algoritam z je: ", time, " ,a kandidati su: ", candidatesArray)
 
 }
 
-func runAlgorithm(input []string, sample string, tolerance int, alg func([]string, string, int, *sync.WaitGroup, chan string)) (time.Duration, []string) {
+func runAlgorithm(input []string, sample string, tolerance int, alg func([]string, string, int, *chan string)) (time.Duration, []string) {
 
 	// Kreiraj waitgrupu za cekanje svih goroutina
-	var wg sync.WaitGroup
+	wg := new(sync.WaitGroup)
 
 	//Kanal sa vrijednostima, tu se stavljaju kandidati
 	ch := make(chan string)
 
 	// Start timewatch
 	startTime := time.Now()
-	/*
-		// Deklaracija varijabla
-		var startIndex1 int
-		var endIndex1 int
-		var startIndex2 int
-		var endIndex2 int
-		var subarray1 []string
-		var subarray2 []string
-		var copySubArray1 []string
-		var copySubArray2 []string
-		var mergedArray []string
 
-		// Prva GO rutina
-		startIndex1 = 0
-		endIndex1 = 49
-		subarray1 = input[startIndex1:endIndex1]
-		copySubArray1 = make([]string, len(subarray1))
-		copy(copySubArray1, subarray1)
-
-		startIndex2 = 749
-		endIndex2 = 799
-		subarray2 = input[startIndex2:endIndex2]
-		copySubArray2 = make([]string, len(subarray2))
-		copy(copySubArray2, subarray2)
-
-		mergedArray = append(copySubArray1, copySubArray2...)
-		wg.Add(1)
-		go alg(mergedArray, sample, tolerance, &wg, ch)
-	*/
-	//ako ne bude radilo na ovaj nacin mozemo probat sa ovim gore copy paste al msm da ce radit ovo
 	// Pozivanje 8 GO rutina
-	algorithmFeeder(0, 49, 749, 799, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(50, 99, 699, 749, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(100, 149, 649, 699, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(150, 199, 599, 649, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(200, 249, 549, 599, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(250, 299, 499, 549, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(300, 349, 449, 499, input, sample, tolerance, &wg, ch, alg)
-	algorithmFeeder(350, 399, 399, 449, input, sample, tolerance, &wg, ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(0, 49, 749, 799, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(50, 99, 699, 749, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(100, 149, 649, 699, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(150, 199, 599, 649, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(200, 249, 549, 599, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(250, 299, 499, 549, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(300, 349, 449, 499, input, sample, tolerance, wg, &ch, alg)
+	wg.Add(1)
+	go algorithmFeeder(350, 399, 399, 449, input, sample, tolerance, wg, &ch, alg)
+
+	var candidatesArray []string
 
 	// Cekanje da se sve gorutine zavrse
-	wg.Wait()
-	close(ch)
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
 
-	candidatesArray := make([]string, len(ch))
-
-	i := 0
 	// Stavljanje svih kandidata u array
 	for value := range ch {
-		candidatesArray[i] = value
-		i = i + 1
+		candidatesArray = append(candidatesArray, value)
 	}
 
 	// End timewatch
@@ -155,9 +134,9 @@ func algorithmFeeder(
 	sample string,
 	tolerance int,
 	wg *sync.WaitGroup,
-	ch chan string,
-	alg func([]string, string, int, *sync.WaitGroup, chan string)) {
-
+	ch *chan string,
+	alg func([]string, string, int, *chan string)) {
+	defer wg.Done()
 	subarray1 := input[startIndex1:endIndex1]
 	copySubArray1 := make([]string, len(subarray1))
 	copy(copySubArray1, subarray1)
@@ -167,17 +146,63 @@ func algorithmFeeder(
 	copy(copySubArray2, subarray2)
 
 	mergedArray := append(copySubArray1, copySubArray2...)
-	wg.Add(1)
-	go alg(mergedArray, sample, tolerance, wg, ch)
-
+	alg(mergedArray, sample, tolerance, ch)
 }
 
-func testAlg(input []string,
-	sample string,
-	tolerance int,
-	wg *sync.WaitGroup,
-	ch chan string) {
-	defer wg.Done()
+func AlgoritamZ(input []string, sub string, tolerance int, ch *chan string) {
+	for _, ref := range input {
+		refLen, subLen := len(ref), len(sub)
+		concatenated := make([]byte, refLen+subLen+2)
+		copy(concatenated, sub)
+		concatenated[subLen] = '$' // Specijalni separator između sub i ref
+		copy(concatenated[subLen+1:], ref)
+		concatenatedLen := len(concatenated)
 
-	//svi kandidati se stavljaju u kanal ch <- kandidat
+		Z := make([]int, concatenatedLen)
+		left, right := 0, 0
+		candidateCount := 0
+
+		for k := 1; k < concatenatedLen; k++ {
+			// Ako je k > right, nema matcha, Z[k] se racuna:
+			if k > right {
+				left, right = k, k
+				for right < concatenatedLen && concatenated[right-left] == concatenated[right] {
+					right++
+				}
+				Z[k] = right - left
+				right--
+			} else {
+				// k1 je broj koji odgovara matchu izmedu left i right
+				k1 := k - left
+				// Z[k1] < od preostalog intervala, onda je on Z[k]
+				if Z[k1] < right-k+1 {
+					Z[k] = Z[k1]
+				} else {
+					left = k
+					for right < concatenatedLen && concatenated[right-left] == concatenated[right] {
+						right++
+					}
+					Z[k] = right - left
+					right--
+				}
+			}
+
+			// Pronalazak podniza unutar ref uz uvažavanje tolerancije
+			if Z[k] == subLen && k >= subLen+1 && k+subLen-1 <= refLen+subLen {
+				errorCount := 0
+				for i := 0; i < subLen; i++ {
+					if sub[i] != ref[k+i-subLen-1] {
+						errorCount++
+					}
+				}
+				if errorCount <= tolerance {
+					startIndex := k - subLen - 1
+					substring := ref[startIndex : startIndex+subLen]
+					*ch <- substring //TODO tu ne znam sta proslijedit, vidim da je u izvornom kodu bio substring al nema mi to smisla kao kandidat?!
+					fmt.Printf("Pattern found at position: %d\n", startIndex)
+					candidateCount++
+				}
+			}
+		}
+	}
 }
