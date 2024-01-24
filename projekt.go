@@ -66,13 +66,21 @@ func main() {
 			refs = append(refs, orderingMap[i][j])
 		}
 	}
-	fmt.Println(len(refs))
+	fmt.Println("Broj očitanja: ", len(refs))
 
 	//Ista stvar sa ostalim algoritmima (samo copy paste)
-	sample := "ATC"
-	tolerance := 1
-	time, candidatesArray := runAlgorithm(refs, sample, tolerance, AlgoritamZ)
-	fmt.Println("Vrijeme za algoritam z je: ", time, " ,a kandidati su: ", candidatesArray)
+	sample := "AACTGCGCA"
+	tolerance := 7
+
+	//time, candidatesArray := runAlgorithm(refs, sample, tolerance, Lavenshtein)
+	//time, candidatesArray := runAlgorithm(refs, sample, tolerance, RabinKarp)
+	//time, candidatesArray := runAlgorithm(refs, sample, tolerance, Naive_algorithm)
+	time, candidatesArray := runAlgorithm(refs, sample, tolerance, Bitap_algorithm)
+	
+	//fmt.Println("Vrijeme za algoritam z je: ", time, " ,a kandidati su: ", candidatesArray)
+	fmt.Println("Postavljena vrijednost tolerancije: ", tolerance)
+	fmt.Println("Broj kandidata: ", len(candidatesArray))
+	fmt.Println("Vrijeme za algoritam je: ", time)
 
 }
 
@@ -149,60 +157,201 @@ func algorithmFeeder(
 	alg(mergedArray, sample, tolerance, ch)
 }
 
-func AlgoritamZ(input []string, sub string, tolerance int, ch *chan string) {
-	for _, ref := range input {
-		refLen, subLen := len(ref), len(sub)
-		concatenated := make([]byte, refLen+subLen+2)
-		copy(concatenated, sub)
-		concatenated[subLen] = '$' // Specijalni separator između sub i ref
-		copy(concatenated[subLen+1:], ref)
-		concatenatedLen := len(concatenated)
 
-		Z := make([]int, concatenatedLen)
-		left, right := 0, 0
-		candidateCount := 0
 
-		for k := 1; k < concatenatedLen; k++ {
-			// Ako je k > right, nema matcha, Z[k] se racuna:
-			if k > right {
-				left, right = k, k
-				for right < concatenatedLen && concatenated[right-left] == concatenated[right] {
-					right++
-				}
-				Z[k] = right - left
-				right--
-			} else {
-				// k1 je broj koji odgovara matchu izmedu left i right
-				k1 := k - left
-				// Z[k1] < od preostalog intervala, onda je on Z[k]
-				if Z[k1] < right-k+1 {
-					Z[k] = Z[k1]
-				} else {
-					left = k
-					for right < concatenatedLen && concatenated[right-left] == concatenated[right] {
-						right++
-					}
-					Z[k] = right - left
-					right--
-				}
-			}
 
-			// Pronalazak podniza unutar ref uz uvažavanje tolerancije
-			if Z[k] == subLen && k >= subLen+1 && k+subLen-1 <= refLen+subLen {
-				errorCount := 0
-				for i := 0; i < subLen; i++ {
-					if sub[i] != ref[k+i-subLen-1] {
-						errorCount++
-					}
-				}
-				if errorCount <= tolerance {
-					startIndex := k - subLen - 1
-					substring := ref[startIndex : startIndex+subLen]
-					*ch <- substring //TODO tu ne znam sta proslijedit, vidim da je u izvornom kodu bio substring al nema mi to smisla kao kandidat?!
-					fmt.Printf("Pattern found at position: %d\n", startIndex)
-					candidateCount++
-				}
+//---------------------------------------------------------------------------
+func bitapSearch(ref, pattern string, tolerance int, kandidati *chan string) {
+	m := len(pattern)
+	mask := make([]int, 128)
+
+	for _, char := range pattern {
+		mask[char] |= 1 << (m - 1)
+	}
+
+	// Inicijalizacija tablice s nulama
+	R := 0
+	shiftedMask := mask
+
+	for i := 0; i < m; i++ {
+		shiftedMask[pattern[i]] |= 1 << i
+	}
+
+	for _, char := range ref {
+		R = (R << 1) | 1
+		R &= shiftedMask[char]
+
+		// Ako je najviši bit nula, podudaranje pronađeno
+		if R&(1<<(m-1)) == 0 {
+			*kandidati <- ref
+			break
+		}
+	}
+
+	for i := 1; i <= tolerance; i++ {
+		R = R << 1
+
+		for j := range mask {
+			R |= mask[j]
+
+			// Ako je najviši bit nula, podudaranje pronađeno
+			if R&(1<<(m-1)) == 0 {
+				*kandidati <- ref
+				break
 			}
 		}
 	}
 }
+
+func Bitap_algorithm(ref []string, sub string, tolerance int, kandidati *chan string) {
+	for _, refString := range ref {
+		bitapSearch(refString, sub, tolerance, kandidati)
+	}
+}
+
+//---------------------------------------------------------------------------
+func levenshteinDistance(a, b string) int {
+	m, n := len(a), len(b)
+	dp := make([][]int, m+1)
+
+	for i := range dp {
+		dp[i] = make([]int, n+1)
+	}
+
+	for i := 0; i <= m; i++ {
+		for j := 0; j <= n; j++ {
+			if i == 0 {
+				dp[i][j] = j
+			} else if j == 0 {
+				dp[i][j] = i
+			} else if a[i-1] == b[j-1] {
+				dp[i][j] = dp[i-1][j-1]
+			} else {
+				dp[i][j] = 1 + min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1])
+			}
+		}
+	}
+
+	return dp[m][n]
+}
+
+func min(a, b, c int) int {
+	if a < b {
+		if a < c {
+			return a
+		}
+		return c
+	}
+
+	if b < c {
+		return b
+	}
+	return c
+}
+
+func Lavenshtein(ref []string, sub string, tolerance int, kandidati *chan string) {
+	for _, refString := range ref {
+		for i := 0; i <= len(refString)-len(sub); i++ {
+			substring := refString[i : i+len(sub)]
+
+			// Računaj Levenshtein udaljenost između podniza i podniza iz referentnog niza
+			distance := levenshteinDistance(sub, substring)
+
+			// Ako je udaljenost manja ili jednaka toleranciji, dodaj podniz u kanal
+			if distance <= tolerance {
+				*kandidati <- substring
+			}
+		}
+	}
+}
+
+//---------------------------------------------------------------------------
+
+const (
+	ALPHABET_SIZE  = 4
+	PRIME          = 101
+	MAX_CANDIDATES = 1000000
+)
+
+func hash(str string, length int) int {
+	hashValue := 0
+	for i := 0; i < length; i++ {
+		hashValue = (hashValue*ALPHABET_SIZE + int(str[i])) % PRIME
+	}
+	return hashValue
+}
+
+func power(x, y int) int {
+	result := 1
+	for i := 0; i < y; i++ {
+		result = (result * x) % PRIME
+	}
+	return result
+}
+
+func rehash(oldHash int, oldChar, newChar byte, length int) int {
+	newHash := (oldHash - int(oldChar)*power(ALPHABET_SIZE, length-1)) % PRIME
+	newHash = (newHash*ALPHABET_SIZE + int(newChar)) % PRIME
+	if newHash < 0 {
+		newHash += PRIME
+	}
+	return newHash
+}
+
+func RabinKarp(ref []string, sub string, tolerance int, kandidati *chan string) {
+	subLen := len(sub)
+	for _, refString := range ref {
+		refLen := len(refString)
+		refHash := hash(refString, subLen)
+		subHash := hash(sub, subLen)
+
+		for i := 0; i <= refLen-subLen; i++ {
+			if refHash == subHash {
+				errorCount := 0
+				for j := 0; j < subLen; j++ {
+					if refString[i+j] != sub[j] {
+						errorCount++
+					}
+				}
+				if errorCount <= tolerance {
+					*kandidati <- refString[i : i+subLen]
+					//*kandidati = append(*kandidati, refString[i:i+subLen])
+					//fmt.Printf("Pattern found at position: %d in ref: %s\n", i, refString)
+				}
+			}
+			if i < refLen-subLen {
+				refHash = rehash(refHash, refString[i], refString[i+subLen], subLen)
+			}
+		}
+	}
+}
+//---------------------------------------------------------------------------
+func Naive_algorithm(ref []string, sub string, tolerance int, kandidati *chan string) {
+	refLen, subLen := len(ref), len(sub)
+	for _, refString := range ref {
+		for i := 0; i <= refLen-subLen; i++ {
+			diffCount := 0
+
+			for j := 0; j < subLen; j++ {
+				if sub[j] != refString[i+j] {
+					diffCount++
+				}
+
+				if diffCount > tolerance {
+					break
+				}
+			}
+
+			if diffCount <= tolerance {
+				*kandidati <- refString[i : i+subLen]
+				//fmt.Printf("Pattern found at position: %d\n", i)
+			}
+		}
+	}
+}
+
+//---------------------------------------------------------------------------
+
+
+
+
