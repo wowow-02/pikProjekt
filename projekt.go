@@ -76,7 +76,7 @@ func main() {
 	//time, candidatesArray := runAlgorithm(refs, sample, tolerance, RabinKarp)
 	//time, candidatesArray := runAlgorithm(refs, sample, tolerance, Naive_algorithm)
 	time, candidatesArray := runAlgorithm(refs, sample, tolerance, Bitap_algorithm)
-	
+
 	//fmt.Println("Vrijeme za algoritam z je: ", time, " ,a kandidati su: ", candidatesArray)
 	fmt.Println("Postavljena vrijednost tolerancije: ", tolerance)
 	fmt.Println("Broj kandidata: ", len(candidatesArray))
@@ -157,10 +157,7 @@ func algorithmFeeder(
 	alg(mergedArray, sample, tolerance, ch)
 }
 
-
-
-
-//---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 func bitapSearch(ref, pattern string, tolerance int, kandidati *chan string) {
 	m := len(pattern)
 	mask := make([]int, 128)
@@ -209,10 +206,10 @@ func Bitap_algorithm(ref []string, sub string, tolerance int, kandidati *chan st
 	}
 }
 
-//---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 func levenshteinDistance(a, b string) int {
 	m, n := len(a), len(b)
-	dp := make([][]int, m+1)
+	dp := make([][]int, m+1) //Inicijalizacija i izrada matrice Levensteinove udaljenosti
 
 	for i := range dp {
 		dp[i] = make([]int, n+1)
@@ -292,7 +289,7 @@ func power(x, y int) int {
 func rehash(oldHash int, oldChar, newChar byte, length int) int {
 	newHash := (oldHash - int(oldChar)*power(ALPHABET_SIZE, length-1)) % PRIME
 	newHash = (newHash*ALPHABET_SIZE + int(newChar)) % PRIME
-	if newHash < 0 {
+	if newHash < 0 { //Ne želimo negativne vrijednosti za našu fju
 		newHash += PRIME
 	}
 	return newHash
@@ -301,7 +298,7 @@ func rehash(oldHash int, oldChar, newChar byte, length int) int {
 func RabinKarp(ref []string, sub string, tolerance int, kandidati *chan string) {
 	subLen := len(sub)
 	for _, refString := range ref {
-		refLen := len(refString)
+		refLen := len(refString) //Početne hash vrijednosti koje se onda preračunavaju s rolling hashom
 		refHash := hash(refString, subLen)
 		subHash := hash(sub, subLen)
 
@@ -319,13 +316,14 @@ func RabinKarp(ref []string, sub string, tolerance int, kandidati *chan string) 
 					//fmt.Printf("Pattern found at position: %d in ref: %s\n", i, refString)
 				}
 			}
-			if i < refLen-subLen {
+			if i < refLen-subLen { //rolling hash
 				refHash = rehash(refHash, refString[i], refString[i+subLen], subLen)
 			}
 		}
 	}
 }
-//---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
 func Naive_algorithm(ref []string, sub string, tolerance int, kandidati *chan string) {
 	refLen, subLen := len(ref), len(sub)
 	for _, refString := range ref {
@@ -351,7 +349,3 @@ func Naive_algorithm(ref []string, sub string, tolerance int, kandidati *chan st
 }
 
 //---------------------------------------------------------------------------
-
-
-
-
