@@ -22,11 +22,11 @@ CGCGTCGTTAATGCCGTCGCCCACCATTGCCACCTGACGTCCTTCACTTTGCAGATGTTATCCAACCTTCATAGTTACTC
 
 Svako očitanje započinje znakom “>” (i kratkim opisom o p) te sadrži niz znakova A, T, C i G te  je potpuno nezavisno o drugima (redoslijed očitanja ne mora odgovarati realnom redoslijedu u stvarnom genomu niti se očitanja moraju nadovezivati jedno na drugo). Duljine očitanja također nisu specificirane i variraju. Zbog te nezavisnosti moguće je paralelno izdvojiti nizove A,T,C,G i ubaciti ih u polje na način da jedan niz/očitanje bude jedan element polja i to bez straha da nam se primjerice dio traženog genskog uzorka nalazi na kraju jednog očitanja, a dio na početku nekog drugog. Sljedeći korak bila bi implementacija algoritama za aproksimativno prepoznavanje uzoraka:
 
-    1.  Algoritam Sellers
+    1.  Algoritam Lavenshtein
 
     2. Algoritam Rabin-Karp
 
-    3. Algoritam Knuth-Morris-Pratt
+    3. Naivni algoritam
 
     4. Algoritam Z
 
